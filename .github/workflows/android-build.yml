@@ -1,40 +1,91 @@
-name: Build Drama Shorts Android APKs
+name: Build Drama Shorts Viewer and Creator APKs
+
 on:
   workflow_dispatch:
   push:
     branches: [main]
     paths:
-      - "drama-shorts-platform/**"
+      - ".build/**"
       - ".github/workflows/android-build.yml"
+
 permissions:
   contents: read
+
 jobs:
-  build:
+  build-android:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
-          cache-dependency-path: drama-shorts-platform/package-lock.json
-      - name: Install dependencies
-        working-directory: drama-shorts-platform
-        run: npm ci
-      - name: Build APKs
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Restore source archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .build/archive/part-* > /tmp/drama-source.b64
+          base64 --decode /tmp/drama-source.b64 > /tmp/drama-source.zip
+          unzip -q /tmp/drama-source.zip -d .
+          test -f drama-shorts-platform/package.json
+
+      - name: Build both Android apps
         working-directory: drama-shorts-platform
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+        shell: bash
         run: |
-          npm run build:android
-      - name: Upload APKs
+          set -euo pipefail
+          npm install --no-audit --no-fund
+          if [[ -n "${VITE_SUPABASE_URL:-}" && -n "${VITE_SUPABASE_PUBLISHABLE_KEY:-}" ]]; then
+            printf 'VITE_SUPABASE_URL=%s\nVITE_SUPABASE_PUBLISHABLE_KEY=%s\n' "$VITE_SUPABASE_URL" "$VITE_SUPABASE_PUBLISHABLE_KEY" > .env
+          fi
+          npm run android:prepare
+
+          cd native/viewer
+          npm install --no-audit --no-fund
+          npx cap add android
+          npx cap sync android
+
+          cd ../studio
+          npm install --no-audit --no-fund
+          npx cap add android
+          npx cap sync android
+
+          cd ../viewer/android
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleDebug
+
+          cd ../../studio/android
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleDebug
+
+      - name: Upload Viewer APK
         uses: actions/upload-artifact@v4
         with:
-          name: drama-shorts-android-apks
-          path: |
-            drama-shorts-platform/native/viewer/android/app/build/outputs/apk/debug/app-debug.apk
-            drama-shorts-platform/native/studio/android/app/build/outputs/apk/debug/app-debug.apk
+          name: Drama-Shorts-Viewer-APK
+          path: drama-shorts-platform/native/viewer/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload Creator Studio APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Drama-Creator-Studio-APK
+          path: drama-shorts-platform/native/studio/android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14
