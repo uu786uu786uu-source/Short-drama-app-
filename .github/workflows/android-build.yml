@@ -71,11 +71,13 @@ jobs:
 
           cd native/viewer
           npm install --no-audit --no-fund
+          npm install --save-dev typescript --no-audit --no-fund
           npx cap add android
           npx cap sync android
 
           cd ../studio
           npm install --no-audit --no-fund
+          npm install --save-dev typescript --no-audit --no-fund
           npx cap add android
           npx cap sync android
 
