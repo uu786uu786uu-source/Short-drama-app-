@@ -70,14 +70,30 @@ jobs:
           npm run android:prepare
 
           cd native/viewer
+          rm -f capacitor.config.ts
+          cat > capacitor.config.json <<'JSON'
+          {
+            "appId": "com.dramashorts.viewer",
+            "appName": "Drama Shorts",
+            "webDir": "www",
+            "android": { "allowMixedContent": false }
+          }
+          JSON
           npm install --no-audit --no-fund
-          npm install --save-dev typescript --no-audit --no-fund
           npx cap add android
           npx cap sync android
 
           cd ../studio
+          rm -f capacitor.config.ts
+          cat > capacitor.config.json <<'JSON'
+          {
+            "appId": "com.dramashorts.creator",
+            "appName": "Drama Creator Studio",
+            "webDir": "www",
+            "android": { "allowMixedContent": false }
+          }
+          JSON
           npm install --no-audit --no-fund
-          npm install --save-dev typescript --no-audit --no-fund
           npx cap add android
           npx cap sync android
 
