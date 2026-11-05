@@ -14,7 +14,7 @@ permissions:
 jobs:
   build-android:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -97,7 +97,28 @@ jobs:
           npx cap add android
           npx cap sync android
 
-          cd ../viewer/android
+          cd ..
+          for app in viewer studio; do
+            wrapper="\$app/android/gradle/wrapper/gradle-wrapper.properties"
+            sed -i 's/-all\\.zip/-bin.zip/' "$wrapper"
+            if grep -q '^networkTimeout=' "$wrapper"; then
+              sed -i 's/^networkTimeout=.*/networkTimeout=180000/' "$wrapper"
+            else
+              echo 'networkTimeout=180000' >> "$wrapper"
+            fi
+            if grep -q '^retries=' "$wrapper"; then
+              sed -i 's/^retries=.*/retries=3/' "$wrapper"
+            else
+              echo 'retries=3' >> "$wrapper"
+            fi
+            if grep -q '^retryBackOffMs=' "$wrapper"; then
+              sed -i 's/^retryBackOffMs=.*/retryBackOffMs=1000/' "$wrapper"
+            else
+              echo 'retryBackOffMs=1000' >> "$wrapper"
+            fi
+          done
+
+          cd viewer/android
           chmod +x gradlew
           ./gradlew --no-daemon assembleDebug
 
