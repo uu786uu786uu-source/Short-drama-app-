@@ -98,8 +98,7 @@ jobs:
           npx cap sync android
 
           cd ..
-          for app in viewer studio; do
-            wrapper="\$app/android/gradle/wrapper/gradle-wrapper.properties"
+          for wrapper in viewer/android/gradle/wrapper/gradle-wrapper.properties studio/android/gradle/wrapper/gradle-wrapper.properties; do
             sed -i 's/-all[.]zip/-bin.zip/' "$wrapper"
             if grep -q '^networkTimeout=' "$wrapper"; then
               sed -i 's/^networkTimeout=.*/networkTimeout=180000/' "$wrapper"
