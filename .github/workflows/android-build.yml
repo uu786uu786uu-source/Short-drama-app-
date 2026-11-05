@@ -100,7 +100,7 @@ jobs:
           cd ..
           for app in viewer studio; do
             wrapper="\$app/android/gradle/wrapper/gradle-wrapper.properties"
-            sed -i 's/-all\\.zip/-bin.zip/' "$wrapper"
+            sed -i 's/-all[.]zip/-bin.zip/' "$wrapper"
             if grep -q '^networkTimeout=' "$wrapper"; then
               sed -i 's/^networkTimeout=.*/networkTimeout=180000/' "$wrapper"
             else
