@@ -44,6 +44,16 @@ jobs:
           base64 --decode /tmp/drama-source.b64 > /tmp/drama-source.zip
           unzip -q /tmp/drama-source.zip -d .
           test -f drama-shorts-platform/package.json
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path("drama-shorts-platform/scripts/prepare-native.mjs")
+          source = path.read_text()
+          old = "cpSync(resolve(studioWww, 'index.html'), resolve(studioWww, 'studio.html'));"
+          new = "cpSync(resolve(studioWww, 'studio.html'), resolve(studioWww, 'index.html'));"
+          if old not in source:
+              raise SystemExit("Expected Studio entry copy line was not found")
+          path.write_text(source.replace(old, new))
+          PY
 
       - name: Build both Android apps
         working-directory: drama-shorts-platform
