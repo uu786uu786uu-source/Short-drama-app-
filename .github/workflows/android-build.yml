@@ -32,12 +32,15 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          packages: "platform-tools platforms;android-35 build-tools;35.0.0"
 
       - name: Restore source archive
         shell: bash
         run: |
           set -euo pipefail
           cat .build/archive/part-* > /tmp/drama-source.b64
+          test "$(wc -c < /tmp/drama-source.b64)" -eq 76484
           base64 --decode /tmp/drama-source.b64 > /tmp/drama-source.zip
           unzip -q /tmp/drama-source.zip -d .
           test -f drama-shorts-platform/package.json
