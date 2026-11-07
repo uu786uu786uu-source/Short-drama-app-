@@ -6,6 +6,7 @@ on:
     branches: [main]
     paths:
       - ".build/**"
+      - "offline-overrides/**"
       - ".github/workflows/android-build.yml"
 
 permissions:
@@ -55,58 +56,24 @@ jobs:
           path.write_text(source.replace(old, new))
           PY
 
-      - name: Inspect source for non-Supabase implementation options
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p /tmp/app-audit
-          find drama-shorts-platform -path '*/node_modules' -prune -o -type f -print | sort > /tmp/app-audit/files.txt
-          find drama-shorts-platform -path '*/node_modules' -prune -o -name package.json -type f -print -exec sed -n '1,180p' {} \; > /tmp/app-audit/packages.txt
-          grep -RInE 'supabase|firebase|localStorage|indexedDB|upload|auth|coin|episode|video' drama-shorts-platform \
-            --include='*.js' --include='*.mjs' --include='*.ts' --include='*.tsx' --include='*.jsx' \
-            --exclude-dir=node_modules | head -n 500 > /tmp/app-audit/integration-points.txt || true
-
-      - name: Upload source audit
-        uses: actions/upload-artifact@v4
-        with:
-          name: Drama-Shorts-Source-Audit
-          path: /tmp/app-audit/
-          if-no-files-found: error
-          retention-days: 7
-
-      - name: Snapshot app source for local-only conversion
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p /tmp/app-source/native/viewer /tmp/app-source/native/studio
-          cp -a drama-shorts-platform/src /tmp/app-source/
-          cp -a drama-shorts-platform/index.html drama-shorts-platform/studio.html /tmp/app-source/
-          cp -a drama-shorts-platform/vite.config.js drama-shorts-platform/vite.studio.config.js /tmp/app-source/
-          cp -a drama-shorts-platform/scripts /tmp/app-source/
-          cp drama-shorts-platform/native/viewer/package.json /tmp/app-source/native/viewer/package.json
-          cp drama-shorts-platform/native/studio/package.json /tmp/app-source/native/studio/package.json
-          cp drama-shorts-platform/package.json /tmp/app-source/root-package.json
-
-      - name: Upload app source snapshot
-        uses: actions/upload-artifact@v4
-        with:
-          name: Drama-Shorts-App-Source
-          path: /tmp/app-source/
-          if-no-files-found: error
-          retention-days: 7
+          # Apply the self-contained offline implementation (no Supabase runtime).
+          cat offline-overrides/bundle.part-* > /tmp/offline-overrides.b64
+          test "$(wc -c < /tmp/offline-overrides.b64)" -eq 21268
+          base64 --decode /tmp/offline-overrides.b64 > /tmp/offline-overrides.zip
+          mkdir -p /tmp/offline-overrides
+          unzip -q /tmp/offline-overrides.zip -d /tmp/offline-overrides
+          cp /tmp/offline-overrides/src/lib.js drama-shorts-platform/src/lib.js
+          cp /tmp/offline-overrides/src/viewer.js drama-shorts-platform/src/viewer.js
+          cp /tmp/offline-overrides/src/studio.js drama-shorts-platform/src/studio.js
+          cp /tmp/offline-overrides/package.json drama-shorts-platform/package.json
+          rm -rf drama-shorts-platform/supabase
 
       - name: Build both Android apps
         working-directory: drama-shorts-platform
-        env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
         shell: bash
         run: |
           set -euo pipefail
           npm install --no-audit --no-fund
-          if [[ -n "${VITE_SUPABASE_URL:-}" && -n "${VITE_SUPABASE_PUBLISHABLE_KEY:-}" ]]; then
-            printf 'VITE_SUPABASE_URL=%s\\nVITE_SUPABASE_PUBLISHABLE_KEY=%s\\n' "$VITE_SUPABASE_URL" "$VITE_SUPABASE_PUBLISHABLE_KEY" > .env
-          fi
           npm run android:prepare
 
           cd native/viewer
