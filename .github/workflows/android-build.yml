@@ -74,6 +74,26 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+      - name: Snapshot app source for local-only conversion
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/app-source
+          cp -a drama-shorts-platform/src /tmp/app-source/
+          cp -a drama-shorts-platform/index.html drama-shorts-platform/studio.html /tmp/app-source/
+          cp -a drama-shorts-platform/vite.config.js drama-shorts-platform/vite.studio.config.js /tmp/app-source/
+          cp -a drama-shorts-platform/scripts /tmp/app-source/
+          cp -a drama-shorts-platform/native/viewer/package.json drama-shorts-platform/native/studio/package.json /tmp/app-source/
+          cp -a drama-shorts-platform/package.json /tmp/app-source/root-package.json
+
+      - name: Upload app source snapshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: Drama-Shorts-App-Source
+          path: /tmp/app-source/
+          if-no-files-found: error
+          retention-days: 7
+
       - name: Build both Android apps
         working-directory: drama-shorts-platform
         env:
