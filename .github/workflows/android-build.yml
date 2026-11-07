@@ -55,6 +55,25 @@ jobs:
           path.write_text(source.replace(old, new))
           PY
 
+      - name: Inspect source for non-Supabase implementation options
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/app-audit
+          find drama-shorts-platform -path '*/node_modules' -prune -o -type f -print | sort > /tmp/app-audit/files.txt
+          find drama-shorts-platform -path '*/node_modules' -prune -o -name package.json -type f -print -exec sed -n '1,180p' {} \; > /tmp/app-audit/packages.txt
+          grep -RInE 'supabase|firebase|localStorage|indexedDB|upload|auth|coin|episode|video' drama-shorts-platform \
+            --include='*.js' --include='*.mjs' --include='*.ts' --include='*.tsx' --include='*.jsx' \
+            --exclude-dir=node_modules | head -n 500 > /tmp/app-audit/integration-points.txt || true
+
+      - name: Upload source audit
+        uses: actions/upload-artifact@v4
+        with:
+          name: Drama-Shorts-Source-Audit
+          path: /tmp/app-audit/
+          if-no-files-found: error
+          retention-days: 7
+
       - name: Build both Android apps
         working-directory: drama-shorts-platform
         env:
@@ -65,7 +84,7 @@ jobs:
           set -euo pipefail
           npm install --no-audit --no-fund
           if [[ -n "${VITE_SUPABASE_URL:-}" && -n "${VITE_SUPABASE_PUBLISHABLE_KEY:-}" ]]; then
-            printf 'VITE_SUPABASE_URL=%s\nVITE_SUPABASE_PUBLISHABLE_KEY=%s\n' "$VITE_SUPABASE_URL" "$VITE_SUPABASE_PUBLISHABLE_KEY" > .env
+            printf 'VITE_SUPABASE_URL=%s\\nVITE_SUPABASE_PUBLISHABLE_KEY=%s\\n' "$VITE_SUPABASE_URL" "$VITE_SUPABASE_PUBLISHABLE_KEY" > .env
           fi
           npm run android:prepare
 
